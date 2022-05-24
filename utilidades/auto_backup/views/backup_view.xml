@@ -99,7 +99,72 @@
         <field name="view_mode">tree,form</field>
         <field name="view_id" ref="view_backup_config_tree"/>
     </record>
+    <record id="view_backup_list_form" model="ir.ui.view">
+        <field name="name">view.backup.list.form</field>
+        <field name="model">db.backupform</field>
+        <field name="type">form</field>
+        <field name="arch" type="xml">
+            <form string="Backups">
+                <sheet string="Backups de la Base de Datos">
+                    <header>
+                        <button name="list_db_file" type="object" string="Listar los Backups" class="oe_highlight"/>
+                        <span> </span>
+                        <button name="crear_backup" type="object" string="Crear nuevo Backup" class="oe_highlight"/>
+                    </header>
+                    <group string="Estado del disco">
+                        <field name='disk_total' readonly="1"/>
+                        <field name='disk_free' readonly="1"/>
+                        <field name='disk_used' readonly="1"/>
+                        <field name='disk_percent' readonly="1"/>
+                    </group>                            
+                    
+                    <group string="Backups de la Base de Datos">
+                        <field name='name' invisible="1"/>
+                    </group>
+                    <field name='list_files' widget="many2many" readonly="1" force_save="1">
+                        <tree default_order="date_file desc">
+                            <field name="date_file"/>
+                            <field name="name"/>                                
+                            <field name="size"/>
+                            <field name="folder" invisible="1"/>
+                            <field name="file_path"/>
+                            <field name="parent_id" invisible="1"/>
+                            <button name="download_db_file"
+                                    type="object"
+                                    icon="fa-download text-success"
+                                    string="Descargar Archivo"
+                                    class="oe_stat_button"
+                            />
+                            <button
+                                    name="action_done_show_wizard"
+                                    type="object"
+                                    icon="fa-trash text-danger"
+                                    context="{
+                                        'file_path': file_path,
+                                        'name': name,
+                                        'parent_id': parent_id,
+                                        'folder': folder
+                                    }"
+                                    string="Eliminar Archivo"
+                                    class="oe_stat_button"
+                            />
+                        </tree>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_backup_action" model="ir.actions.act_window">
+        <field name="name">view.backup.action</field>
+        <field name="res_model">db.backupform</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="view_backup_list_form"/>
+    </record>
 
     <menuitem id="auto_backup_menu" name="Back-ups" parent="base.menu_custom"/>
     <menuitem parent="auto_backup_menu" action="action_backup" id="backup_conf_menu"/>
+    <menuitem name="Ver y Descargar Backups" id="auto_backup_root_menu" web_icon="auto_backup,static/description/odoo_icon.png" groups="auto_backup.group_manager"  sequence="25" />
+    <menuitem name="Backup" id="restore_menu" parent="auto_backup_root_menu" groups="auto_backup.group_manager"/>
+    <menuitem action="view_backup_action" sequence="999" parent="restore_menu" id="backup_action_menu"/>
 </odoo>

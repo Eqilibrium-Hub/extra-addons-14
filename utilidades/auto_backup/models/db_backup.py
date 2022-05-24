@@ -5,10 +5,14 @@ import time
 import shutil
 import json
 import tempfile
+import io
+from io import BytesIO, StringIO
+import psutil
 
 from odoo import models, fields, api, tools, _
 from odoo.exceptions import Warning, AccessDenied
 import odoo
+from icecream import ic
 
 import logging
 _logger = logging.getLogger(__name__)
@@ -278,7 +282,9 @@ class DbBackup(models.Model):
         return a file object with the dump """
 
         cron_user_id = self.env.ref('auto_backup.backup_scheduler').user_id.id
-        if self._name != 'db.backup' or cron_user_id != self.env.user.id:
+        #CAMBIOS DE MARITO
+        #if self._name != 'db.backup' or cron_user_id != self.env.user.id:
+        if self._name != 'db.backup':
             _logger.error('Unauthorized database operation. Backups should only be available from the cron job.')
             raise AccessDenied()
 
@@ -327,3 +333,102 @@ class DbBackup(models.Model):
             'modules': modules,
         }
         return manifest
+
+class DbBackupList(models.TransientModel):
+    _name = 'db.backuplist'
+    _description = 'Backup configuration record'
+
+    name = fields.Char('Nombre del archivo')
+    date_file = fields.Datetime('Fecha')
+    size = fields.Char('Tamaño')
+    file_path = fields.Char('Ruta')
+    folder = fields.Char('Carpeta')
+    parent_id = fields.Integer('ID')  
+
+    def download_db_file(self):
+        file_path = self.file_path
+        _logger.info("------------ %r ----------------"%file_path)
+        download_url = '/downloads/' + self.name
+        _logger.info("--- %r ----"%download_url)
+        return {
+            'type': 'ir.actions.act_url',
+            'url': download_url,
+            'target': 'new',
+        }
+    
+    def action_done_show_wizard(self):
+        id=self.id
+        view_id = self.env.ref('auto_backup.view_delete_file_wizard').id#Este dato lo sacamos de Ajustes/Tecnico/Vistas. Es el ID externo
+        return {'type': 'ir.actions.act_window',#El type tiene que ser el mismo que usa el wizard (act_window)
+                'name': _('Está intentando eliminar un archivo'),#Nombre que va a tener el wizard.
+                'res_model': 'delete.file.wizard',#El modelo del wizard o de la vista (se lo puede sacar del codigo, es el campo _name="nombre")
+                'target': 'new',#New para que se abra una nueva ventana (el wizard)
+                'view_mode': 'form',#Modo de vista (formulario para el wizard)
+                'views': [[view_id, 'form']],#El id externo de la vista que definimos en la variable mas arriba y el 'form' o tree segun necesitemos
+                }       
+
+class DbBackupForm(models.TransientModel):
+    _name = 'db.backupform'
+    _description = 'Backup form configuration record'
+
+    name = fields.Char(string='Nombre del Registro',default='Ver Backups')
+    folder = fields.Char('Backup Directory', help='Absolute path for storing the backups')
+    list_files = fields.Many2many('db.backuplist', string='Lista de archivos')
+    
+    disk_total = fields.Char(string='Tamaño total')
+    disk_free = fields.Char(string='Espacio libre')
+    disk_used = fields.Char(string='Espacio usado')
+    disk_percent = fields.Char(string='Porcentaje usado')
+
+    def to_gb(self, bytes):
+        "Convierte bytes a gigabytes."
+        return bytes / 1024**3
+
+    def list_db_file(self):
+        self.env["db.backuplist"].search([]).unlink()
+        folders = self.env["db.backup"].search([])
+        archivos = []
+        record_set = self.env['db.backuplist']
+        record_temp = self.env['db.backuplist']
+        record = []
+        if (folders):
+
+            for x in folders:
+                directorio = x.folder
+                if directorio not in record:
+                    record.append(directorio)
+                    contenido = os.listdir(x.folder)
+                    for file in contenido:
+                        archivos.append(file)
+                        file_path = x.folder + '/' + file
+                        name = file
+                        date_file_temp = os.path.getmtime(file_path)
+                        #date_file = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(os.path.getmtime("{}".format(file_path))))
+                        date_file = datetime.datetime.fromtimestamp(date_file_temp).strftime('%Y-%m-%d %H:%M:%S')
+                        size_temp = os.stat(file_path).st_size
+                        size = size_temp / (1024*1024)
+                        size = f"{round(size,2)} MB"
+                        vals={
+                            'name': name,
+                            'date_file': date_file,
+                            'size':size,
+                            'file_path': file_path,
+                            'folder': x.folder,
+                            'parent_id': self.id
+                        }
+                        
+                        cont = record_set.create(vals)
+                        record_temp = record_temp + cont
+        self.list_files = record_temp
+        #DATOS DEL USO DEL DISCO
+        disk_usage = psutil.disk_usage("/")
+
+        self.disk_total = "{:.2f} GB.".format(self.to_gb(disk_usage.total))
+        self.disk_free = "{:.2f} GB.".format(self.to_gb(disk_usage.free))
+        self.disk_used = "{:.2f} GB.".format(self.to_gb(disk_usage.used))
+        self.disk_percent = "{}%.".format(disk_usage.percent)
+
+    def crear_backup(self):
+        self.env['db.backup'].schedule_backup()
+        aux = self.env["db.backupform"].search([('id','=',self.id)])
+        aux.list_db_file()
