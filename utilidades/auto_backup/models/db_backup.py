@@ -339,11 +339,7 @@ class DbBackup(models.Model):
             'modules': modules,
         }
         return manifest
-<<<<<<< HEAD
-
-=======
     
->>>>>>> 50bfe6dac78ad2abd2fd89584371734ed370ef09
 class DbBackupList(models.TransientModel):
     _name = 'db.backuplist'
     _description = 'Backup configuration record'
@@ -353,12 +349,8 @@ class DbBackupList(models.TransientModel):
     size = fields.Char('Tamaño')
     file_path = fields.Char('Ruta')
     folder = fields.Char('Carpeta')
-<<<<<<< HEAD
-    parent_id = fields.Integer('ID')  
-=======
     parent_id = fields.Integer('ID')
     checkbox = fields.Boolean()
->>>>>>> 50bfe6dac78ad2abd2fd89584371734ed370ef09
 
     def download_db_file(self):
         file_path = self.file_path
@@ -394,10 +386,7 @@ class DbBackupForm(models.TransientModel):
     disk_free = fields.Char(string='Espacio libre')
     disk_used = fields.Char(string='Espacio usado')
     disk_percent = fields.Char(string='Porcentaje usado')
-<<<<<<< HEAD
-=======
     bulk_delete = fields.Boolean(string='Invisible check field', default=False)
->>>>>>> 50bfe6dac78ad2abd2fd89584371734ed370ef09
 
     def to_gb(self, bytes):
         "Convierte bytes a gigabytes."
@@ -428,10 +417,7 @@ class DbBackupForm(models.TransientModel):
                         size = size_temp / (1024*1024)
                         size = f"{round(size,2)} MB"
                         vals={
-<<<<<<< HEAD
-=======
                             'checkbox': False,
->>>>>>> 50bfe6dac78ad2abd2fd89584371734ed370ef09
                             'name': name,
                             'date_file': date_file,
                             'size':size,
@@ -450,17 +436,11 @@ class DbBackupForm(models.TransientModel):
         self.disk_free = "{:.2f} GB.".format(self.to_gb(disk_usage.free))
         self.disk_used = "{:.2f} GB.".format(self.to_gb(disk_usage.used))
         self.disk_percent = "{}%.".format(disk_usage.percent)
-<<<<<<< HEAD
-=======
         self.check_bulk_delete()
->>>>>>> 50bfe6dac78ad2abd2fd89584371734ed370ef09
 
     def crear_backup(self):
         self.env['db.backup'].schedule_backup()
         aux = self.env["db.backupform"].search([('id','=',self.id)])
-<<<<<<< HEAD
-        aux.list_db_file()
-=======
         aux.list_db_file()
         aux.check_bulk_delete()
 
@@ -497,4 +477,3 @@ class DbBackupForm(models.TransientModel):
             else:
                 self.bulk_delete = False
                 self.write({'bulk_delete':False})
->>>>>>> 50bfe6dac78ad2abd2fd89584371734ed370ef09
