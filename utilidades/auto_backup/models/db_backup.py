@@ -6,12 +6,9 @@ import time
 import shutil
 import json
 import tempfile
-<<<<<<< HEAD
-=======
 import base64
 import requests
 import urllib3
->>>>>>> 50bfe6dac78ad2abd2fd89584371734ed370ef09
 import io
 from io import BytesIO, StringIO
 import psutil
