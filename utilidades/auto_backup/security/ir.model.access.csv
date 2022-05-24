@@ -1,3 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-admin_access, db_backup admin access,model_db_backup,base.group_no_one,1,1,1,1
-admin_security_rule, Model db_backup admin access,model_db_backup,auto_backup.group_manager,1,1,1,1
+admin_access," db_backup admin access",model_db_backup,base.group_no_one,1,1,1,1
+admin_security_rule," Model db_backup admin access",model_db_backup,auto_backup.group_manager,1,1,1,1
+admin_access_form," Form admin access",model_db_backupform,auto_backup.group_manager,1,1,1,1
+admin_access_list," List admin access",model_db_backuplist,auto_backup.group_manager,1,1,1,1
+admin_access_delete," Delete admin access",model_delete_file_wizard,auto_backup.group_manager,1,1,1,1
+admin_access_bulk_delete,Delete Bulk Admin Access,model_delete_file_bulk_wizard,auto_backup.group_manager,1,1,1,1

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import os
 import datetime
@@ -5,10 +6,17 @@ import time
 import shutil
 import json
 import tempfile
+import base64
+import requests
+import urllib3
+import io
+from io import BytesIO, StringIO
+import psutil
 
-from odoo import models, fields, api, tools, _
-from odoo.exceptions import Warning, AccessDenied
+from odoo import models, fields, api, tools, _, http, tools
+from odoo.exceptions import Warning, AccessDenied, ValidationError
 import odoo
+from icecream import ic
 
 import logging
 _logger = logging.getLogger(__name__)
@@ -72,6 +80,9 @@ class DbBackup(models.Model):
     email_to_notify = fields.Char('E-mail to notify',
                                   help='Fill in the e-mail where you want to be notified that the backup failed on '
                                        'the FTP.')
+    
+    list_files = fields.Many2many('db.backuplist', string='Lista de archivos')
+
 
     def test_sftp_connection(self, context=None):
         self.ensure_one()
@@ -83,6 +94,7 @@ class DbBackup(models.Model):
         has_failed = False
 
         for rec in self:
+            path_to_write_to = rec.sftp_path
             ip_host = rec.sftp_host
             port_host = rec.sftp_port
             username_login = rec.sftp_user
@@ -94,10 +106,9 @@ class DbBackup(models.Model):
                 s.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 s.connect(ip_host, port_host, username_login, password_login, timeout=10)
                 sftp = s.open_sftp()
-                sftp.close()
                 message_title = _("Connection Test Succeeded!\nEverything seems properly set up for FTP back-ups!")
             except Exception as e:
-                _logger.critical('There was a problem connecting to the remote ftp: %s', str(e))
+                _logger.critical('There was a problem connecting to the remote ftp: ' + str(e))
                 error += str(e)
                 has_failed = True
                 message_title = _("Connection Test Failed!")
@@ -117,7 +128,6 @@ class DbBackup(models.Model):
     def schedule_backup(self):
         conf_ids = self.search([])
         for rec in conf_ids:
-
             try:
                 if not os.path.isdir(rec.folder):
                     os.makedirs(rec.folder)
@@ -136,9 +146,8 @@ class DbBackup(models.Model):
                 _logger.debug(
                     "Couldn't backup database %s. Bad database administrator password for server running at "
                     "http://%s:%s" % (rec.name, rec.host, rec.port))
-                _logger.debug("Exact error from the exception: %s", str(error))
+                _logger.debug("Exact error from the exception: " + str(error))
                 continue
-
             # Check if user wants to write to SFTP or not.
             if rec.sftp_write is True:
                 try:
@@ -149,7 +158,7 @@ class DbBackup(models.Model):
                     port_host = rec.sftp_port
                     username_login = rec.sftp_user
                     password_login = rec.sftp_password
-                    _logger.debug('sftp remote path: %s', path_to_write_to)
+                    _logger.debug('sftp remote path: %s' % path_to_write_to)
 
                     try:
                         s = paramiko.SSHClient()
@@ -157,7 +166,7 @@ class DbBackup(models.Model):
                         s.connect(ip_host, port_host, username_login, password_login, timeout=20)
                         sftp = s.open_sftp()
                     except Exception as error:
-                        _logger.critical('Error connecting to remote server! Error: %s', str(error))
+                        _logger.critical('Error connecting to remote server! Error: ' + str(error))
 
                     try:
                         sftp.chdir(path_to_write_to)
@@ -169,8 +178,7 @@ class DbBackup(models.Model):
                             try:
                                 sftp.chdir(current_directory)
                             except:
-                                _logger.info('(Part of the) path didn\'t exist. Creating it now at %s',
-                                             current_directory)
+                                _logger.info('(Part of the) path didn\'t exist. Creating it now at ' + current_directory)
                                 # Make directory and then navigate into it
                                 sftp.mkdir(current_directory, 777)
                                 sftp.chdir(current_directory)
@@ -184,15 +192,16 @@ class DbBackup(models.Model):
                                 try:
                                     sftp.stat(os.path.join(path_to_write_to, f))
                                     _logger.debug(
-                                        'File %s already exists on the remote FTP Server ------ skipped', fullpath)
+                                        'File %s already exists on the remote FTP Server ------ skipped' % fullpath)
                                 # This means the file does not exist (remote) yet!
                                 except IOError:
                                     try:
+                                        # sftp.put(fullpath, path_to_write_to)
                                         sftp.put(fullpath, os.path.join(path_to_write_to, f))
-                                        _logger.info('Copying File % s------ success', fullpath)
+                                        _logger.info('Copying File % s------ success' % fullpath)
                                     except Exception as err:
                                         _logger.critical(
-                                            'We couldn\'t write the file to the remote server. Error: %s', str(err))
+                                            'We couldn\'t write the file to the remote server. Error: ' + str(err))
 
                     # Navigate in to the correct folder.
                     sftp.chdir(path_to_write_to)
@@ -213,8 +222,8 @@ class DbBackup(models.Model):
                             # on the Odoo form it will be removed.
                             if delta.days >= rec.days_to_keep_sftp:
                                 # Only delete files, no directories!
-                                if ".dump" in file or '.zip' in file:
-                                    _logger.info("Delete too old file from SFTP servers: %s", file)
+                                if (".dump" in file or '.zip' in file):
+                                    _logger.info("Delete too old file from SFTP servers: " + file)
                                     sftp.unlink(file)
                     # Close the SFTP session.
                     sftp.close()
@@ -225,8 +234,7 @@ class DbBackup(models.Model):
                         s.close()
                     except:
                         pass
-                    _logger.error('Exception! We couldn\'t back up to the FTP server. Here is what we got back '
-                                  'instead: %s', str(e))
+                    _logger.error('Exception! We couldn\'t back up to the FTP server. Here is what we got back instead: %s' % str(e))
                     # At this point the SFTP backup failed. We will now check if the user wants
                     # an e-mail notification about this.
                     if rec.send_mail_sftp_fail:
@@ -247,7 +255,9 @@ class DbBackup(models.Model):
                         except Exception:
                             pass
 
-            # Remove all old files (on local server) in case this is configured..
+            """
+            Remove all old files (on local server) in case this is configured..
+            """
             if rec.autoremove:
                 directory = rec.folder
                 # Loop over all files in the directory.
@@ -263,7 +273,7 @@ class DbBackup(models.Model):
                         if delta.days >= rec.days_to_keep:
                             # Only delete files (which are .dump and .zip), no directories.
                             if os.path.isfile(fullpath) and (".dump" in f or '.zip' in f):
-                                _logger.info("Delete local out-of-date file: %s", fullpath)
+                                _logger.info("Delete local out-of-date file: " + fullpath)
                                 os.remove(fullpath)
 
     # This is more or less the same as the default Odoo function at
@@ -278,7 +288,9 @@ class DbBackup(models.Model):
         return a file object with the dump """
 
         cron_user_id = self.env.ref('auto_backup.backup_scheduler').user_id.id
-        if self._name != 'db.backup' or cron_user_id != self.env.user.id:
+        #CAMBIOS DE MARITO
+        #if self._name != 'db.backup' or cron_user_id != self.env.user.id:
+        if self._name != 'db.backup':
             _logger.error('Unauthorized database operation. Backups should only be available from the cron job.')
             raise AccessDenied()
 
@@ -288,7 +300,7 @@ class DbBackup(models.Model):
         cmd.append(db_name)
 
         if backup_format == 'zip':
-            with tempfile.TemporaryDirectory() as dump_dir:
+            with odoo.tools.osutil.tempdir() as dump_dir:
                 filestore = odoo.tools.config.filestore(db_name)
                 if os.path.exists(filestore):
                     shutil.copytree(filestore, os.path.join(dump_dir, 'filestore'))
@@ -327,3 +339,141 @@ class DbBackup(models.Model):
             'modules': modules,
         }
         return manifest
+    
+class DbBackupList(models.TransientModel):
+    _name = 'db.backuplist'
+    _description = 'Backup configuration record'
+
+    name = fields.Char('Nombre del archivo')
+    date_file = fields.Datetime('Fecha')
+    size = fields.Char('Tamaño')
+    file_path = fields.Char('Ruta')
+    folder = fields.Char('Carpeta')
+    parent_id = fields.Integer('ID')
+    checkbox = fields.Boolean()
+
+    def download_db_file(self):
+        file_path = self.file_path
+        _logger.info("------------ %r ----------------"%file_path)
+        download_url = '/downloads/' + self.name
+        _logger.info("--- %r ----"%download_url)
+        return {
+            'type': 'ir.actions.act_url',
+            'url': download_url,
+            'target': 'new',
+        }
+    
+    def action_done_show_wizard(self):
+        id=self.id
+        view_id = self.env.ref('auto_backup.view_delete_file_wizard').id#Este dato lo sacamos de Ajustes/Tecnico/Vistas. Es el ID externo
+        return {'type': 'ir.actions.act_window',#El type tiene que ser el mismo que usa el wizard (act_window)
+                'name': _('Está intentando eliminar un archivo'),#Nombre que va a tener el wizard.
+                'res_model': 'delete.file.wizard',#El modelo del wizard o de la vista (se lo puede sacar del codigo, es el campo _name="nombre")
+                'target': 'new',#New para que se abra una nueva ventana (el wizard)
+                'view_mode': 'form',#Modo de vista (formulario para el wizard)
+                'views': [[view_id, 'form']],#El id externo de la vista que definimos en la variable mas arriba y el 'form' o tree segun necesitemos
+                }       
+
+class DbBackupForm(models.TransientModel):
+    _name = 'db.backupform'
+    _description = 'Backup form configuration record'
+
+    name = fields.Char(string='Nombre del Registro',default='Ver Backups')
+    folder = fields.Char('Backup Directory', help='Absolute path for storing the backups')
+    list_files = fields.Many2many('db.backuplist', string='Lista de archivos')
+    
+    disk_total = fields.Char(string='Tamaño total')
+    disk_free = fields.Char(string='Espacio libre')
+    disk_used = fields.Char(string='Espacio usado')
+    disk_percent = fields.Char(string='Porcentaje usado')
+    bulk_delete = fields.Boolean(string='Invisible check field', default=False)
+
+    def to_gb(self, bytes):
+        "Convierte bytes a gigabytes."
+        return bytes / 1024**3
+
+    def list_db_file(self):
+        self.env["db.backuplist"].search([]).unlink()
+        folders = self.env["db.backup"].search([])
+        archivos = []
+        record_set = self.env['db.backuplist']
+        record_temp = self.env['db.backuplist']
+        record = []
+        if (folders):
+
+            for x in folders:
+                directorio = x.folder
+                if directorio not in record:
+                    record.append(directorio)
+                    contenido = os.listdir(x.folder)
+                    for file in contenido:
+                        archivos.append(file)
+                        file_path = x.folder + '/' + file
+                        name = file
+                        date_file_temp = os.path.getmtime(file_path)
+                        #date_file = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(os.path.getmtime("{}".format(file_path))))
+                        date_file = datetime.datetime.fromtimestamp(date_file_temp).strftime('%Y-%m-%d %H:%M:%S')
+                        size_temp = os.stat(file_path).st_size
+                        size = size_temp / (1024*1024)
+                        size = f"{round(size,2)} MB"
+                        vals={
+                            'checkbox': False,
+                            'name': name,
+                            'date_file': date_file,
+                            'size':size,
+                            'file_path': file_path,
+                            'folder': x.folder,
+                            'parent_id': self.id
+                        }
+                        
+                        cont = record_set.create(vals)
+                        record_temp = record_temp + cont
+        self.list_files = record_temp
+        #DATOS DEL USO DEL DISCO
+        disk_usage = psutil.disk_usage("/")
+
+        self.disk_total = "{:.2f} GB.".format(self.to_gb(disk_usage.total))
+        self.disk_free = "{:.2f} GB.".format(self.to_gb(disk_usage.free))
+        self.disk_used = "{:.2f} GB.".format(self.to_gb(disk_usage.used))
+        self.disk_percent = "{}%.".format(disk_usage.percent)
+        self.check_bulk_delete()
+
+    def crear_backup(self):
+        self.env['db.backup'].schedule_backup()
+        aux = self.env["db.backupform"].search([('id','=',self.id)])
+        aux.list_db_file()
+        aux.check_bulk_delete()
+
+    def delete_in_bulk(self):
+        id=self.id
+        view_id_bulk = self.env.ref('auto_backup.view_delete_file_bulk_wizard').id#Este dato lo sacamos de Ajustes/Tecnico/Vistas. Es el ID externo
+        return {'type': 'ir.actions.act_window',#El type tiene que ser el mismo que usa el wizard (act_window)
+                'name': _('Eliminado de Backup por Lote'),#Nombre que va a tener el wizard.
+                'res_model': 'delete.file.bulk.wizard',#El modelo del wizard o de la vista (se lo puede sacar del codigo, es el campo _name="nombre")
+                'target': 'new',#New para que se abra una nueva ventana (el wizard)
+                'view_mode': 'form',#Modo de vista (formulario para el wizard)
+                'views': [[view_id_bulk, 'form']],#El id externo de la vista que definimos en la variable mas arriba y el 'form' o tree segun necesitemos
+                }
+        """ for to_delete in self.list_files:
+            if to_delete.checkbox == True:
+                file_path = to_delete.file_path
+                _logger.info("------------ %r ----------------"%file_path)
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    print (e)
+                    raise ValidationError(f'Error: {e}')
+        aux = self.env["db.backupform"].search([('id','=',self.id)])
+        aux.list_db_file()
+        aux.check_bulk_delete() """
+
+    @api.onchange('list_files')
+    def check_bulk_delete(self):
+        self.write({'bulk_delete':False})
+        for check in self.list_files:
+            if check.checkbox == True:
+                self.bulk_delete = True
+                break
+            else:
+                self.bulk_delete = False
+                self.write({'bulk_delete':False})
