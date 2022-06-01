@@ -167,7 +167,7 @@
                         </div>
                         <!-- CLIENTE  -->
                         <div class="row py-1" style="margin-top: 10px !important; margin-bottom: 6px !important;border: 1px solid black; border-radius: 0px;">
-                            <div class="col-4">
+                            <div class="col-5">
                                 <div style="border: 0px solid red;">
                                     <div class="px-2">
                                         <strong>CUIT: </strong>
@@ -186,11 +186,11 @@
                                 </div>
                             </div>
 
-                            <div class="col-8">
+                            <div class="col-7">
                                 <div style="border: 0px solid red;">
                                     <div class="px-2">
                                         <strong>
-                                            <span>Apellido y Nombre/ Razon Social: </span>
+                                            <span>Razon Social: </span>
                                         </strong>
                                         <span t-field="o.partner_id.name"/>
                                     </div>
