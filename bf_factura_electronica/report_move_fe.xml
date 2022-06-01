@@ -49,7 +49,8 @@
                                 <!--<img t-if="o.company_id.logo" t-att-src="'data:image/png;base64,%s' % o.company_id.logo" style="display: block !important; float: left !important; position: absolute !important; margin-top: 0px !important; margin-bottom: 0px !important; top: 10px !important; left: 10px !important; bottom: auto !important; max-height: 95px;"/>-->
                                 <!-- <span t-field="o.company_id.name" style="font-size: 18px; font-weight: bold;"/> -->
                                 <div class="col-12 text-left py-1 px-10">
-                                    <span t-field="o.company_id.city"/>, <span t-field="company.partner_id.street"/>
+                                    <span t-field="o.company_id.city"/>
+,                                    <span t-field="company.partner_id.street"/>
                                     <br/>
                                     <span t-field="o.company_id.partner_id.l10n_ar_afip_responsibility_type_id.name"/>
                                 </div>
@@ -305,26 +306,6 @@
                                             <span t-esc="'{0:,.2f}'.format(l.quantity)"/>
                                             <span t-field="l.uom_id" groups="product.group_uom"/>
                                         </td>
-                                        <!-- <div t-if="o.l10n_latam_document_type_id.l10n_ar_letter != 'B'">
-                                            <td class="text-right">
-                                                <span t-field="o.currency_id.symbol"/>
-                                                <span t-esc="'{0:,.2f}'.format(l.price_unit)"/>
-                                            </td>
-                                        </div>
-                                        <div t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'B'">
-                                            <td class="text-right">
-                                                <span t-field="o.currency_id.symbol"/>
-                                                <span t-esc="'{0:,.2f}'.format(l.price_subtotal_vat / l.quantity)"/>
-
-                                            </td>
-                                        </div>
-                                        <td t-if="display_discount" class="text-right">
-                                            <span t-field="l.discount"/>
-                                        </td>
-                                        <td class="text-right" t-if="o.l10n_latam_document_type_id.l10n_ar_letter != 'B'">
-                                            <span t-esc="', '.join(map(lambda x: (x.description or x.name), l.tax_ids))"/>
-                                        </td> -->
-
                                         <!--CAMBIOS DE MARITO-->
                                         <td class="text-left">
                                             <span t-field="l.product_uom_id"/>
@@ -338,7 +319,7 @@
                                         <div t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'B'">
                                             <td class="text-right">
                                                 <span t-field="o.currency_id.symbol"/>
-                                                <span t-esc="'{0:,.2f}'.format(l.price_subtotal_vat / l.quantity)"/>
+                                                <span t-esc="'{0:,.2f}'.format(l.price_total / l.quantity)"/>
                                             </td>
                                         </div>
 
@@ -356,9 +337,14 @@
                                             <span t-esc="', '.join(map(lambda x: (x.description or x.name), l.tax_ids))"/>
                                         </td>
 
-                                        <td class="text-right" t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'A' or o.l10n_latam_document_type_id.l10n_ar_letter == 'B'">
+                                        <!-- <td class="text-right" t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'A' or o.l10n_latam_document_type_id.l10n_ar_letter == 'B'"> -->
+                                        <td class="text-right" t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'A'">
                                             <span t-field="o.currency_id.symbol"/>
-                                            <span t-esc="'{0:,.2f}'.format(l.price_subtotal_vat)"/>
+                                            <span t-esc="'{0:,.2f}'.format(l.price_total)"/>
+                                        </td>
+                                        <td class="text-right" t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'B'">
+                                            <span t-field="o.currency_id.symbol"/>
+                                            <span t-esc="'{0:,.2f}'.format(l.price_total)"/>
                                         </td>
 
                                         <td class="text-right" t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'C'">
@@ -372,7 +358,7 @@
                             </table>                            <!-- END TABLA ITEMS -->
                         </div>
                         <div t-attf-class="row mt-5 {{ 'someones-hidden' if o.l10n_latam_document_type_id.l10n_ar_letter != 'A' else ''  }}" style="border: 0px solid black; background-color: transparent; z-index:9999">
-                            <div t-attf-class="col-7 pl-0 {{ '' if (len(o.move_tax_ids) &gt; 0 and o.l10n_latam_document_type_id.l10n_ar_letter == 'A') else '' }}">
+                            <div t-attf-class="col-7 pl-0 {{ '' if (len(o.invoice_line_ids.tax_ids) &gt; 0 and o.l10n_latam_document_type_id.l10n_ar_letter == 'A') else '' }}">
                                 <t t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'A'">
                                     <table class="table table-sm">
                                         <thead>
@@ -427,54 +413,80 @@
                                 </t>
                             </div>
                             <div class="col-5 pr-0">
-                                <div class="text-right">
-                                    <div style="float:left;width: 50%;">
-                                        <strong class="to-hide">Importe Neto Gravado: </strong>
-                                        <br/>
-                                        <t t-foreach="o.env['account.tax'].search([('type_tax_use','=','sale'),('amount_type','=','percent')],order='amount desc')" t-as="tax">
-                                            <strong class="to-hide">
-                                                <span t-field="tax.name"/>
-                                            </strong>
-                                            <br/>
-                                        </t>
-                                        <strong class="to-hide">Importe Otros Tributos: </strong>
-                                        <br/>
-                                        <strong>Importe Total: </strong>
-                                        <br/>
-                                        <t t-if="o.currency_id.name != 'ARS'">
-                                            <strong>Importe Total en Pesos: </strong>
-                                        </t>
-                                    </div>
-                                    <div style="float:left;width: 50%;">
-                                        <span class="to-hide" t-field="o.currency_id.symbol"/>
-                                        <span class="to-hide" t-esc="'{0:,.2f}'.format(o.amount_untaxed)"/>
-                                        <br/>
-                                        <t t-foreach="o._get_tax_details()" t-as="t">
-                                            <span class="to-hide" t-field="o.currency_id.symbol"/>
-                                            <span class="to-hide" t-esc="'{0:,.2f}'.format(t)"/>
-                                            <br/>
-                                        </t>
-                                        <span class="to-hide">$ 0,00</span>
-                                        <br/>
-                                        <!-- <t t-if="o.currency_id.name != 'ARS'">
-                                        $<span t-esc="'{0:,.2f}'.format(o.l10n_ar_currency_rate * o.amount_total)"/>
-                                    </t> -->
-                                        <t t-if="o.currency_id.name != 'ARS'">
-                                            U$D <span t-esc="'{0:,.2f}'.format(o.amount_total)"/>
-                                        <br/>
-                                            $                                        <span t-esc="'{0:,.2f}'.format(o.amount_total_signed)"/>
-                                    </t>
-                                    <t t-if="o.currency_id.name == 'ARS'">
-                                        <span t-field="o.currency_id.symbol"/>
-                                        <span t-esc="'{0:,.2f}'.format(o.amount_total)"/>
-                                    </t>
+                                <div class="col-6 pr-0">
                                 </div>
-                            </div>
-                            <div>
-                            </div>
+                                <t t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'A'">
+                                    <div class="text-right">
+                                        <div style="float:left;width: 50%;">
+                                            <strong class="to-hide">Importe Neto Gravado: </strong>
+                                            <br/>
+                                            <t t-foreach="o.env['account.tax'].search([('type_tax_use','=','sale'),('amount_type','=','percent')],order='amount desc')" t-as="tax">
+                                                <strong class="to-hide">
+                                                    <span t-field="tax.name"/>
+                                                </strong>
+                                                <br/>
+                                            </t>
+                                            <strong class="to-hide">Importe Otros Tributos: </strong>
+                                            <br/>
+                                            <strong>Importe Total: </strong>
+                                            <br/>
+                                            <t t-if="o.currency_id.name != 'ARS'">
+                                                <strong>Importe Total en Pesos: </strong>
+                                            </t>
+                                        </div>
+                                        <div style="float:left;width: 50%;">
+                                            <span class="to-hide" t-field="o.currency_id.symbol"/>
+                                            <span class="to-hide" t-esc="'{0:,.2f}'.format(o.amount_untaxed)"/>
+                                            <br/>
+                                            <t t-foreach="o.get_tax_details()" t-as="t">
+                                                <span class="to-hide" t-field="o.currency_id.symbol"/>
+                                                <span t-esc="o.get_tax_details()[t]"/>
+                                                <!-- <span class="to-hide" t-esc="'{0:,.2f}'.format(t)"/> -->
+                                                <br/>
+                                            </t>
+                                            <span class="to-hide">$ 0,00</span>
+                                            <br/>
+                                            <t t-if="o.currency_id.name != 'ARS'">
+                                                U$D <span t-esc="'{0:,.2f}'.format(o.amount_total)"/>
+                                            <br/>
+                                                $                                            <span t-esc="'{0:,.2f}'.format(o.amount_total_signed)"/>
+                                            </t>
+                                            <t t-if="o.currency_id.name == 'ARS'">
+                                                <span t-field="o.currency_id.symbol"/>
+                                                <span t-esc="'{0:,.2f}'.format(o.amount_total)"/>
+                                            </t>
+                                        </div>
+                                    </div>
+                                </t>
+                                <t t-if="o.l10n_latam_document_type_id.l10n_ar_letter == 'B'">
+                                    <div class="text-right">
+                                        <div style="float:left;width: 50%;">
+                                            <strong>Importe Total: </strong>
+                                            <br/>
+                                            <t t-if="o.currency_id.name != 'ARS'">
+                                                <strong>Importe Total en Pesos: </strong>
+                                            </t>
+                                        </div>
+                                        <div style="float:left;width: 50%;">
+                                            <t t-if="o.currency_id.name != 'ARS'">
+                                                U$D <span t-esc="'{0:,.2f}'.format(o.amount_total)"/>
+                                            <br/>
+                                                $                                            <span t-esc="'{0:,.2f}'.format(o.amount_total_signed)"/>
+                                            </t>
+                                            <t t-if="o.currency_id.name == 'ARS'">
+                                                <span t-field="o.currency_id.symbol"/>
+                                                <span t-esc="'{0:,.2f}'.format(o.amount_total)"/>
+                                            </t>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- <div style="float:left;width: 50%;">
+                                        <strong>Importe Total: </strong>
+                                        <span t-field="o.currency_id.symbol"/> <span t-esc="'{0:,.2f}'.format(o.amount_total)"/>
+                                    </div> -->
+                                </t>
                         </div>
                     </div>
-
                 </div>
             </div>            <!--END PAGE-->
             <!-- CAE -->
@@ -488,11 +500,13 @@
                     <div class="col-8 py-1">
                         <div class="row">
                             <div class="col-3">
-                                <img t-if="o.texto_modificado_qr and o.afip_cae and o.afip_cae_due" t-att-src="'/report/barcode/?type=%s&amp;value=%s&amp;width=%s&amp;height=%s' % ('QR', o.texto_modificado_qr, 120, 120)" style="width: 120px;"/>
+                                <img t-if="o.l10n_ar_afip_qr_code" t-att-src="'/report/barcode/?type=%s&amp;value=%s&amp;width=%s&amp;height=%s' % ('QR', o.l10n_ar_afip_qr_code, 500, 500)" alt="QR Code" style="height:100px"/>
+                                <!-- <img t-if="o.texto_modificado_qr and o.afip_cae and o.afip_cae_due" t-att-src="'/report/barcode/?type=%s&amp;value=%s&amp;width=%s&amp;height=%s' % ('QR', o.texto_modificado_qr, 120, 120)" style="width: 120px;"/> -->
                             </div>
                             <div class="col-9">
                                 <div class="row">
-                                    <div t-attf-class="col-8 {{'' if (o.afip_cae and o.afip_cae_due) else 'invisible'}}">
+                                    <div t-attf-class="col-8 {{'' if (o.l10n_ar_afip_auth_code and o.l10n_ar_afip_auth_code_due) else 'invisible'}}">
+                                        <!-- <div> -->
                                         <img src="bf_factura_electronica/static/img/afip.svg" style="width: 200px;display:block;"/>
                                     </div>
                                     <div class="col-4 py-2" style="text-aling:center;font-weight:bold;font-size:1em;">
@@ -501,20 +515,30 @@
                                         <span class="topage"/>
                                     </div>
                                 </div>
-                                <span t-attf-class="{{'' if (o.afip_cae and o.afip_cae_due) else 'invisible'}}" style="display:block;">Comprobante Autorizado</span>
-                                <span t-attf-class="{{'' if (o.afip_cae and o.afip_cae_due) else 'invisible'}}" style="display:block;margin-top:10px;line-height:1.1;">Esta Administración Federal no se responsabiliza por los datos ingresados en el detalle de la operación</span>
+                                <span t-attf-class="{{'' if (o.l10n_ar_afip_auth_code and o.l10n_ar_afip_auth_code_due) else 'invisible'}}" style="display:block;">Comprobante Autorizado</span>
+                                <span t-attf-class="{{'' if (o.l10n_ar_afip_auth_code and o.l10n_ar_afip_auth_code_due) else 'invisible'}}" style="display:block;margin-top:10px;line-height:1.1;">Esta Administración Federal no se responsabiliza por los datos ingresados en el detalle de la operación</span>
                             </div>
                         </div>
                     </div>
                     <div class="col-4 py-2">
-                        <div t-attf-class="{{'' if (o.afip_cae and o.afip_cae_due) else 'invisible'}}" style="margin-top:20px;margin-bottom:20px;">
-                            <strong> CAE: </strong>
-                            <span t-field="o.afip_cae"/>
-                        </div>
-                        <div t-attf-class="{{'' if (o.afip_cae and o.afip_cae_due) else 'invisible'}}">
-                            <strong> Fecha Vencimiento CAE: </strong>
-                            <span t-field="o.afip_cae_due"/>
-                        </div>
+                        <t t-if="o.journal_id.l10n_ar_afip_pos_system and o.journal_id.l10n_ar_afip_pos_system != 'II_IM'">
+                            <div>
+                                CAE: <span t-field="o.l10n_ar_afip_auth_code"/>
+                            </div>
+                            <div>
+                                Fecha Vencimiento CAE: <span t-field="o.l10n_ar_afip_auth_code_due"/>
+                            </div>
+                        </t>
+                        <!-- <div t-attf-class="{{'' if (o.afip_cae and o.afip_cae_due) else 'invisible'}}" style="margin-top:20px;margin-bottom:20px;"> -->
+                        <!-- <div>
+                            <strong> CAE: </strong> -->
+                        <!-- <span t-field="o.afip_cae"/> -->                        <!-- <span>AFIP CAE</span> -->
+                        <!-- </div> -->
+                        <!-- <div t-attf-class="{{'' if (o.afip_cae and o.afip_cae_due) else 'invisible'}}"> -->
+                        <!-- <div> -->
+                        <!-- <strong> Fecha Vencimiento CAE: </strong> -->
+                        <!-- <span t-field="o.afip_cae_due"/> -->                        <!-- <span>CAE DUE</span> -->
+                        <!-- </div> -->
                     </div>                    <!-- cierra col-4 -->
                 </div>                <!-- cierra row -->
             </div>            <!-- cierra el footer -->
