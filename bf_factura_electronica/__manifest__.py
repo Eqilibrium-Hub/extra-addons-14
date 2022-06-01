@@ -8,7 +8,7 @@
     Con este módulo perzonalizamos las facturas en un formato mas limpio y presentable. Se puede adaptar a las necesidades de cada cliente.
     """,
     'category': 'black-addons',
-    'depends': ['base','account'],
+    'depends': ['base','l10n_ar_edi'],
     'installable': True,
     'license': 'AGPL-3',
     'name': 'bf_factura_electronica',

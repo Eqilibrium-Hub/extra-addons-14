@@ -4,10 +4,10 @@ from odoo import models, fields, api
 import json
 import base64
 
-class AccountMove_2(models.Model):
+class AccountMove(models.Model):
     _inherit = 'account.move'
     
-    def _get_name_invoice(self):
+    def get_name_invoice(self):
         aux = self.name
         #print(self.l10n_latam_document_type_id)
         if (self.l10n_latam_document_type_id.id in [3,8,13,35]):
@@ -30,7 +30,7 @@ class AccountMove_2(models.Model):
             a=1
         return tax_data
 
-class AccountMoveLine_bf_fact_elec(models.Model):
+class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
 
     def _compute_price_subtotal_vat(self):
