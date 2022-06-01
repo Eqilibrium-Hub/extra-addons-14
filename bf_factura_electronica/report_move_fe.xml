@@ -289,9 +289,13 @@
                                         <div t-if="l.product_id.name != l.name">
                                             <td>
                                                 <!-- <span t-esc="o.display_name.replace(o.l10n_latam_document_type_id.doc_code_prefix, '').replace('Reversión de: ','')[0:36] + (')' if '(' in o.display_name else '')"/> -->
-                                                <span t-esc="l.name if l.product_id.name in l.name else ''"/>
-                                                <span t-esc="l.product_id.name + ' - ' + l.name if l.product_id.name not in l.name else ''"/>
-
+                                                <t t-if="l.product_id.name is not False">
+                                                    <span t-esc="l.name if l.product_id.name in l.name else ''"/>
+                                                    <span t-esc="l.product_id.name + ' - ' + l.name if l.product_id.name not in l.name else ''"/>    
+                                                </t>
+                                                <t t-if="l.product_id.name is False">
+                                                    <span t-esc="l.name"/>
+                                                </t>
                                             </td>
                                         </div>
                                         <div t-if="l.product_id.name == l.name">
@@ -299,6 +303,11 @@
                                                 <span t-field="l.product_id.name"/>
                                             </td>
                                         </div>
+                                        <!-- <div t-if="l.product_id.name == l.name">
+                                            <td>
+                                                <span t-field="l.product_id.name"/>
+                                            </td>
+                                        </div> -->
                                         <!-- <td>
                                             <span t-field="l.name"/>
                                         </td> -->
