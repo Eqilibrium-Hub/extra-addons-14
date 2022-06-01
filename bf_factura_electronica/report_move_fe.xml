@@ -33,22 +33,22 @@
                                     </h2> -->
                                     <!-- </t> -->
                                     <!-- <t t-if="len(o.company_id.name) &gt; 11 "> -->
-                                    <img t-att-src="image_data_uri(o.company_id.logo_web)" style="width: 120px;float:left;margin-top:10px;margin-right:10px;"/>
+                                    <img t-att-src="image_data_uri(o.company_id.logo)" style="width: 350px;float:left;margin-top:10px;margin-right:10px;"/>
                                     <br/>
-                                    <h3 class="py-2">
+                                    <!-- <h3 class="py-2">
                                         <strong>
                                             <span t-field="o.company_id.name"></span>
                                         </strong>
-                                    </h3>
+                                    </h3> -->
                                     <br/>
                                     <!-- </t> -->
                                 </div>
                                 <!-- <br/>
-                            <br/> -->
+                                <br/> -->
                                 <!-- <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" style="display: block; max-width: 1000px; max-height: 1000px;margin:10px;" alt="Logo"/> -->
                                 <!--<img t-if="o.company_id.logo" t-att-src="'data:image/png;base64,%s' % o.company_id.logo" style="display: block !important; float: left !important; position: absolute !important; margin-top: 0px !important; margin-bottom: 0px !important; top: 10px !important; left: 10px !important; bottom: auto !important; max-height: 95px;"/>-->
                                 <!-- <span t-field="o.company_id.name" style="font-size: 18px; font-weight: bold;"/> -->
-                                <div class="col-12 text-left py-1 px-10">
+                                <div class="col-10 text-left py-1 px-10">
                                     <span t-field="o.company_id.city"/>
 ,                                    <span t-field="company.partner_id.street"/>
                                     <br/>
