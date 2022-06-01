@@ -9,7 +9,6 @@
     """,
     'category': 'black-addons',
     'depends': [
-        'l10n_ar_afipws_fe',
     ],
     'installable': True,
     'license': 'AGPL-3',
