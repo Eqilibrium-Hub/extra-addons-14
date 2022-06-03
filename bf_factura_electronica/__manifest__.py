@@ -19,5 +19,8 @@
     'demo': [
 
     ],
-    'images':['static/img/afip.svg',]
+    'images':[
+        'static/img/afip.svg',
+        'static/img/logo-black-big.png',
+    ]
 }
